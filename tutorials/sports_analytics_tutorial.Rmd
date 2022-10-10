@@ -1,7 +1,6 @@
 ---
 title: "Intro to R & Sports Analytics"
-author: "Andrew Noecker"
-date: '2022-09-08'
+date: "`r format(Sys.time(), '%B %d, %Y')`"
 output: html_document
 editor_options: 
   chunk_output_type: console
