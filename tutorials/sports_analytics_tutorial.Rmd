@@ -1,0 +1,212 @@
+---
+title: "Intro to R & Sports Analytics"
+author: "Andrew Noecker"
+date: '2022-09-08'
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## Intro to R
+
+You can access R and RStudio in 2 ways:
+
+1.  Downloading R and RStudio onto your personal computer
+
+2.  Use the St. Olaf RStudio server, found at [r.stolaf.edu](r.stolaf.edu)
+
+Then, create a new R Markdown file - there's a lot of customization available with R Markdown, but the basics are summed up in this [cheat sheet](https://www.rstudio.com/wp-content/uploads/2015/02/rmarkdown-cheatsheet.pdf). R Markdown files allow for *text portions* and *code chunks*. Code chunks can be added with the green C button or with Ctrl + Alt + I.
+
+### Installing tidyverse
+
+The `tidyverse` package is a collection of R packages used for data wrangling and data visualization.
+
+First, install the package using the following command - to run a command you can a) type it into the console and hit Enter, OR b) type it in a code portion and hit run (the green arrow in the code chunk) :
+
+```{r tidyverse, eval = FALSE}
+install.packages("tidyverse")
+```
+
+Then, ensure that you can use the tidyverse packages within your current file/document by running the following:
+
+```{r, eval = FALSE}
+library(tidyverse)
+```
+
+Another way to run a line of code is to hit Ctrl + Enter, it's a lot easier than hitting the green arrow every time.
+
+### R Data Types
+
+Visit this [link](https://www.tutorialspoint.com/r/r_data_types.htm) to get a brief outline of how data types in R work. It ends with data frames, which are the foundation for the data we most often work with.
+
+### Getting help
+
+1.  Use built in R help - if you don't know what a function does, you can type the following in to the console (assuming we want to know about the `read_csv` function):
+
+```{r, eval = FALSE}
+?read_csv
+
+# Another way to access help
+help(read_csv)
+```
+
+## Sports Analytics Example
+
+We'll now go through a quick example of reading in data, performing a couple of data wrangling operations, and then making a graph or two.
+
+### Read in Data
+
+The `read_csv` function can be used to read in any file of type CSV (comma separated values). There are many functions in R that deal with reading in data, depending on the file type (TSV, RDS, xlsx, etc). If there's a data file type, you can probably find something in R that can read it in.
+
+`read_csv` has lots of arguments, which you can read more about by typing `?read_csv` into the console. You can skip the first `n` rows, assign column types manually, and even name columns within read_csv.
+
+Here we will read in a dataset that contains NBA per game statistics for every season dating back to 1997. The code to make the dataset is commented out. All you need is the line starting with `read_csv`.
+
+```{r}
+### Code to make the dataset
+
+#install.packages("ballr")
+# library(ballr)
+# nba_pergame_statistics <- tibble()
+# for (i in 1997:2022){
+#   temp <- ballr::NBAPerGameStatistics(season = i) %>%
+#     mutate(season = i)
+#   nba_pergame_statistics <- bind_rows(nba_pergame_statistics, temp)
+# }
+
+# You may get some warnings when using ballr functions, that's ok
+
+
+### CODE TO READ IN DATASET FROM THE WEB
+nba_per_game <- read_csv("https://raw.githubusercontent.com/noecke2/CMSAC-22-Basketball/main/data/nba_pergame_stats.csv")
+
+
+```
+
+-   Note: the `<-` assigns our csv dataset to a *variable* called `nba_per_game`. So, anytime you see `<-`, we are assigning it to a new variable - the name of the variable doesn't matter (we could call it zebra123 if we wanted), but what's important is that it's an object we can now access/use/manipulate.
+
+### Filtering Rows
+
+Filtering is one of the most useful `tidyverse` commands, as it can limit your data down to specific observations that you want. For example, we just want to work with data from the last 5 seasons. Then we do the following:
+
+```{r}
+
+nba_per_game_filtered <- filter(nba_per_game, season >=2018)
+
+### This is equivalent to:
+# nba_per_game_filtered <- nba_per_game %>%
+#   filter(season >= 2018)
+
+# Here's another example - let's look at
+
+# players who are 30+years old, using our 2018+ data
+
+nba_old <- filter(nba_per_game_filtered, age >= 30)
+
+```
+
+We can output our new dataset:
+
+```{r}
+nba_per_game_filtered
+```
+
+### Selecting columns
+
+Next, lets suppose that we only care about certain columns. For instance, let's look at `player`, `pos`, `g` (games played), `mp` (minutes played), `season`, `x3ppercent` (3p%), `ftpercent`, and `pts`. Then we can `select` columns with the following:
+
+```{r}
+nba_select <- select(nba_per_game_filtered, player, pos, g, mp, season, x3ppercent, ftpercent, pts)
+nba_select
+```
+
+*Voila!* That makes our data a lot nicer to look at.
+
+### Creating a new column by mutating
+
+Suppose we're thinking of doing some analysis of players, but want to use a players total points rather than their points per game. We don't have that exact number, but we do have data that can get us there.
+
+We do have points per game and games played. Thus, we can create a new column using `mutate`, a crucial function that allows us to create new columns or edit existing columns.
+
+```{r}
+nba_total_pts <- mutate(nba_select, pts_total = pts*g)
+nba_total_pts
+```
+
+We do see some rounding errors here with decimals (it isn't possible to score 12.6 points total), but we can get a better idea of who scored the most points across the whole season.
+
+### Arranging data
+
+Now let's suppose that we want to order our data to see who had the most total points in a season over the last 5 seasons. There are multiple ways to answer this question, but the `arrange` function is one useful way. We can simply pick a column and arrange our data from greatest to least(we can take out the `desc` if we want to look at the data least to greatest).
+
+```{r}
+nba_arranged <- arrange(nba_total_pts, desc(pts_total))
+nba_arranged
+```
+
+Maybe unsurprisingly to NBA fans, James Harden has 3 of the 4 highest total point scoring seasons since 2018.
+
+### Group by and Summarizing Data (VERY USEFUL)
+
+Next we turn our attention to aggregating data. Suppose we want to see which players had the highest average free throw percentage over the last 5 seasons, with a minimum of 10 games played.
+
+There are 3 main steps / commands needed:
+
+1)  `filter` out any rows with less than 10 games played
+2)  `group_by` each player - in essence, we're lumping all of James Harden's last 5 seasons together into one group, all of LeBron James' seasons into another, and so on.
+3)  `summarize` by taking the mean ft% of each group that we have
+
+These commands can all be chained together using a pipe, which looks like this: `%>%`. Pipes are extremely useful when trying to write neat/concise code. Google has some great resources on pipes in R, but they essentially take what's on the left hand side of the pipe and feed it in as the first argument to the function on the right hand side of the pipe.
+
+```{r}
+nba_arranged %>% 
+  filter(g >= 10) %>% # step 1 - note the dataset is given via the pipe
+  group_by(player) %>% #step 2 - the filtered data is fed in 
+  summarize(avg_ftpercent = mean(ftpercent, na.rm = TRUE)) %>% # na.rm = TRUE removes all NA values
+  arrange(avg_ftpercent) # View the worst ft shooters
+```
+
+## ggplot - a.k.a GRAPHS
+
+Now we can start to make graphs! We typically use ggplot2, a package in R designed for making graphs. There are nearly infinite things we can do with ggplot, so this will be less than even scratching the surface.
+
+\vspace{.5in}
+
+Once again, Google is our friend - [here's one key resource for ggplot](https://ggplot2-book.org/introduction.html) - it's a whole book written on how to make graphs using ggplot. It's fairly easy to skim and find something you're looking for, or you can dive in and try to soak up as much information as possible.
+
+THE BASICS: - ggplot graphics are built using what's called the Grammar of Graphics - We *map* **variables** in our data to *aesthetic* features of our graph - Aesthetic features include the color, the shape, the size, and so on - This is done using layers - Examples of different layers include points, lines, bars, etc.
+
+EXAMPLE:
+
+Here's an example where we make a simple scatterplot looking at the relationship between 3 pointers made and total rebounds.
+
+```{r}
+ggplot(data = nba_per_game_filtered) +  # here's the data we want to use, we use
+  # We use + signs to connect ggplot lines
+  geom_point(mapping = aes(x = x3p, y = trb)) # We create a point layer 
+  # The x axis maps 3 pointers, the y axis maps total rebounds
+```
+
+Now let's spice it up just a little bit - let's color the points by player position and add a trend-line
+
+```{r}
+nba_per_game_filtered %>%
+  filter(pos %in% c("C", "PF", "SF", "SG", "PG")) %>% # Filter out hybrid positions to just have 5 colors and not 10+
+ggplot() + # When we pipe into ggplot, no data is needed
+  geom_point(mapping = aes(x = x3p, y = trb, color = pos)) +
+  geom_smooth(mapping = aes(x = x3p, y = trb))
+  # + theme_bw() # Delete the # sign at the start of this line to see how changing the theme of a graph works
+```
+
+That's not looking too bad! We can certainly learn some interesting things from that plot.
+
+Again, you can spend HOURS learning ggplot, so it's really up to you how much you want to dig in! The data provided here is a pretty good and simple dataset to play around with, so explore Google and YouTube to your hearts content! R is fun, but also frustrating (especially at the start), so don't get discuraged!
+
+You can also feel free to email me anytime ([noecke2\@stolaf.edu](mailto:noecke2@stolaf.edu){.email}), or come with R questions to meetings!
+
+Have fun exploring!
